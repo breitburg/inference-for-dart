@@ -12,8 +12,8 @@
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		552E486D2624839C0ADE4D18 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F92F80460F5525B9A7F0F729 /* Pods_RunnerTests.framework */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
-		8F0F0B802D86BE250051A653 /* llama.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8F0F0B7F2D86BE250051A653 /* llama.xcframework */; };
-		8F0F0B812D86BE250051A653 /* llama.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8F0F0B7F2D86BE250051A653 /* llama.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		8FFB68B02D86C197004ADB45 /* llama.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8FFB68AF2D86C197004ADB45 /* llama.xcframework */; };
+		8FFB68B12D86C197004ADB45 /* llama.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8FFB68AF2D86C197004ADB45 /* llama.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
@@ -31,13 +31,13 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		8F0F0B822D86BE250051A653 /* Embed Frameworks */ = {
+		8FFB68B22D86C197004ADB45 /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				8F0F0B812D86BE250051A653 /* llama.xcframework in Embed Frameworks */,
+				8FFB68B12D86C197004ADB45 /* llama.xcframework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -58,7 +58,7 @@
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
 		860070D86DE25E86F454CCA2 /* Pods-RunnerTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug.xcconfig"; sourceTree = "<group>"; };
-		8F0F0B7F2D86BE250051A653 /* llama.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = llama.xcframework; path = ../../../../Downloads/llama.xcframework; sourceTree = "<group>"; };
+		8FFB68AF2D86C197004ADB45 /* llama.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = llama.xcframework; path = "../../../llama.cpp/build-apple/llama.xcframework"; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
 		9740EEB31CF90195004384FC /* Generated.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Generated.xcconfig; path = Flutter/Generated.xcconfig; sourceTree = "<group>"; };
 		97C146EE1CF9000F007C117D /* Runner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Runner.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -85,7 +85,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B37639F3F97BFD2C8CCCB1BE /* Pods_Runner.framework in Frameworks */,
-				8F0F0B802D86BE250051A653 /* llama.xcframework in Frameworks */,
+				8FFB68B02D86C197004ADB45 /* llama.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -103,7 +103,7 @@
 		8F641E252D8668740075D061 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				8F0F0B7F2D86BE250051A653 /* llama.xcframework */,
+				8FFB68AF2D86C197004ADB45 /* llama.xcframework */,
 				FEF7215591A9A0C9326766C5 /* Pods_Runner.framework */,
 				F92F80460F5525B9A7F0F729 /* Pods_RunnerTests.framework */,
 			);
@@ -201,9 +201,9 @@
 				97C146EA1CF9000F007C117D /* Sources */,
 				97C146EB1CF9000F007C117D /* Frameworks */,
 				97C146EC1CF9000F007C117D /* Resources */,
-				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				5F0D29F3BA16330367587EB0 /* [CP] Embed Pods Frameworks */,
-				8F0F0B822D86BE250051A653 /* Embed Frameworks */,
+				8FFB68B22D86C197004ADB45 /* Embed Frameworks */,
+				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 			);
 			buildRules = (
 			);
@@ -333,7 +333,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" embed_and_thin";
+			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" embed_and_thin\n";
 		};
 		5F0D29F3BA16330367587EB0 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;

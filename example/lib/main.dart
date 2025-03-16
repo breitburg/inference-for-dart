@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:inference/inference.dart';
@@ -25,6 +27,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   String _output = '';
   Inference? inference;
+  InferenceModelInformation? info;
 
   @override
   void dispose() {
@@ -41,14 +44,39 @@ class _HomeScreenState extends State<HomeScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(child: SingleChildScrollView(child: Text(_output))),
-            SizedBox(height: 30),
+            if (info != null) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    info!.baseName,
+                    style: Theme.of(context).textTheme.headlineSmall,
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(width: 10),
+                  Center(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.black, width: 1.5),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      padding: EdgeInsets.symmetric(vertical: 2, horizontal: 5),
+                      child: Text(
+                        info!.sizeLabel,
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 30),
+            ],
+            if (_output.isNotEmpty) ...[Text(_output), SizedBox(height: 30)],
             ElevatedButton(
               onPressed: () async {
                 if (inference == null) {
                   final picked = await FilePicker.platform.pickFiles(
-                    type: FileType.custom,
-                    allowedExtensions: ['gguf'],
+                    type: FileType.any,
                     allowMultiple: false,
                   );
 
@@ -60,10 +88,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
 
                 await inference!.initialize();
+                setState(() {
+                  info = inference!.fetchInformation();
+                });
 
                 _output = '';
 
                 final messages = [
+                  ChatMessage.system(content: 'You are Lori, a helpful chatbot'),
                   ChatMessage.human(content: 'Tell me about yourself'),
                 ];
 

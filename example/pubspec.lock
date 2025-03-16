@@ -148,8 +148,8 @@ packages:
     description:
       path: "packages/llama_cpp_bindings"
       ref: HEAD
-      resolved-ref: ea91fa595de0c7c496112dd479d06621bc88e281
-      url: "https://github.com/i-Naji/llama_cpp_dart.git"
+      resolved-ref: fd82bfcd59547b19fc8801d1b0e56b291e0f9614
+      url: "https://github.com/breitburg/llama_cpp_dart_bindings.git"
     source: git
     version: "1.0.0"
   matcher:

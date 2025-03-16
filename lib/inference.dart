@@ -8,6 +8,42 @@ export 'package:llama_cpp_bindings/llama_cpp_bindings.dart';
 
 enum FinishReason { stop, unspecified }
 
+class InferenceModelInformation {
+  final String name;
+  final String architecture;
+  final String type;
+  final String finetune;
+  final String baseName;
+  final String sizeLabel;
+  final String license;
+  final String licenseLink;
+
+  InferenceModelInformation._({
+    required this.name,
+    required this.architecture,
+    required this.type,
+    required this.finetune,
+    required this.baseName,
+    required this.sizeLabel,
+    required this.license,
+    required this.licenseLink,
+  });
+
+  @override
+  String toString() {
+    return 'InferenceModelInformation('
+        'name: $name, '
+        'architecture: $architecture, '
+        'type: $type, '
+        'finetune: $finetune, '
+        'baseName: $baseName, '
+        'sizeLabel: $sizeLabel, '
+        'license: $license, '
+        'licenseLink: $licenseLink, '
+        ')';
+  }
+}
+
 class ChatResult {
   final ChatMessage message;
   final FinishReason finishReason;
@@ -76,6 +112,118 @@ class Inference {
                  'Unsupported platform: ${Platform.operatingSystem}',
                ),
            };
+
+  InferenceModelInformation fetchInformation() {
+    if (!_initialized) throw Exception('Llama not initialized');
+
+    final params =
+        malloc<gguf_init_params>().ref
+          ..no_alloc = false
+          ..ctx = nullptr;
+
+    final modelPathUtf8 = modelPath.toNativeUtf8().cast<Char>();
+    final ctx = _bindings.gguf_init_from_file(modelPathUtf8, params);
+    malloc.free(modelPathUtf8);
+
+    if (ctx == nullptr) {
+      throw Exception('Failed to load model from path: $modelPath');
+    }
+
+    try {
+      return InferenceModelInformation._(
+        name:
+            _bindings
+                .gguf_get_val_str(
+                  ctx,
+                  _bindings.gguf_find_key(
+                    ctx,
+                    'general.name'.toNativeUtf8().cast<Char>(),
+                  ),
+                )
+                .cast<Utf8>()
+                .toDartString(),
+        architecture:
+            _bindings
+                .gguf_get_val_str(
+                  ctx,
+                  _bindings.gguf_find_key(
+                    ctx,
+                    'general.architecture'.toNativeUtf8().cast<Char>(),
+                  ),
+                )
+                .cast<Utf8>()
+                .toDartString(),
+        type:
+            _bindings
+                .gguf_get_val_str(
+                  ctx,
+                  _bindings.gguf_find_key(
+                    ctx,
+                    'general.type'.toNativeUtf8().cast<Char>(),
+                  ),
+                )
+                .cast<Utf8>()
+                .toDartString(),
+        finetune:
+            _bindings
+                .gguf_get_val_str(
+                  ctx,
+                  _bindings.gguf_find_key(
+                    ctx,
+                    'general.finetune'.toNativeUtf8().cast<Char>(),
+                  ),
+                )
+                .cast<Utf8>()
+                .toDartString(),
+        baseName:
+            _bindings
+                .gguf_get_val_str(
+                  ctx,
+                  _bindings.gguf_find_key(
+                    ctx,
+                    'general.basename'.toNativeUtf8().cast<Char>(),
+                  ),
+                )
+                .cast<Utf8>()
+                .toDartString(),
+        sizeLabel:
+            _bindings
+                .gguf_get_val_str(
+                  ctx,
+                  _bindings.gguf_find_key(
+                    ctx,
+                    'general.size_label'.toNativeUtf8().cast<Char>(),
+                  ),
+                )
+                .cast<Utf8>()
+                .toDartString(),
+        license:
+            _bindings
+                .gguf_get_val_str(
+                  ctx,
+                  _bindings.gguf_find_key(
+                    ctx,
+                    'general.license'.toNativeUtf8().cast<Char>(),
+                  ),
+                )
+                .cast<Utf8>()
+                .toDartString(),
+        licenseLink:
+            _bindings
+                .gguf_get_val_str(
+                  ctx,
+                  _bindings.gguf_find_key(
+                    ctx,
+                    'general.license.link'.toNativeUtf8().cast<Char>(),
+                  ),
+                )
+                .cast<Utf8>()
+                .toDartString(),
+      );
+    } finally {
+      _bindings.gguf_free(ctx);
+    }
+  }
 
   /// Initialize the Llama instance, loading the model
   /// and initializing the context.

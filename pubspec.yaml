@@ -13,7 +13,7 @@ dependencies:
 
   llama_cpp_bindings:
     git:
-      url: https://github.com/i-Naji/llama_cpp_dart.git
+      url: https://github.com/breitburg/llama_cpp_dart_bindings.git
       path: packages/llama_cpp_bindings/
 
   ffi: ^2.1.4
