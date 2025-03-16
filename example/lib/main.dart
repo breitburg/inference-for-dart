@@ -1,7 +1,6 @@
-import 'dart:ffi';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:langchain_llama_cpp/langchain_llama_cpp.dart';
+import 'package:inference/inference.dart';
 
 void main() {
   runApp(MyApp());
@@ -25,11 +24,11 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String _output = '';
-  Llama? llama;
+  Inference? inference;
 
   @override
   void dispose() {
-    llama?.dispose();
+    inference?.dispose();
     super.dispose();
   }
 
@@ -46,7 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
             SizedBox(height: 30),
             ElevatedButton(
               onPressed: () async {
-                if (llama == null) {
+                if (inference == null) {
                   final picked = await FilePicker.platform.pickFiles(
                     type: FileType.custom,
                     allowedExtensions: ['gguf'],
@@ -57,32 +56,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   if (modelPath == null) return;
 
-                  llama = Llama(
-                    modelPath: modelPath,
-                    dynamicLibrary: DynamicLibrary.open(
-                      'llama.framework/llama',
-                    ),
-                  );
+                  inference = Inference(modelPath: modelPath);
                 }
 
-                await llama!.initialize();
+                await inference!.initialize();
 
                 _output = '';
 
                 final messages = [
-                  HumanChatMessage(
-                    content: ChatMessageContent.text('Tell me about yourself'),
-                  ),
+                  ChatMessage.human(content: 'Tell me about yourself'),
                 ];
 
-                await for (final result in llama!.chat(messages)) {
-                  setState(() => _output += result.output.content);
+                await for (final result in inference!.chat(messages)) {
+                  setState(() => _output += result.message.content);
                   await Future.delayed(const Duration());
                 }
 
-                llama!.dispose();
+                inference!.dispose();
               },
-              child: Text('Click me'),
+              child: Text('Compute'),
             ),
           ],
         ),

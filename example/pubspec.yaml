@@ -31,7 +31,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  langchain_llama_cpp:
+  inference:
     path: ../
     
   file_picker: ^9.1.0

@@ -1,15 +1,53 @@
 import 'dart:ffi';
+import 'dart:io';
 
 import 'package:ffi/ffi.dart';
-import 'package:langchain_llama_cpp/langchain_llama_cpp.dart';
+import 'package:inference/inference.dart';
 
 export 'package:llama_cpp_bindings/llama_cpp_bindings.dart';
-export 'package:langchain/langchain.dart';
 
-class Llama {
+enum FinishReason { stop, unspecified }
+
+class ChatResult {
+  final ChatMessage message;
+  final FinishReason finishReason;
+
+  ChatResult({required this.message, required this.finishReason});
+}
+
+class ChatMessage {
+  final String role;
+  final String content;
+
+  ChatMessage.custom({required this.content, required this.role})
+    : assert(role.isNotEmpty);
+
+  ChatMessage.system({required String content})
+    : this.custom(content: content, role: 'system');
+
+  ChatMessage.human({required String content})
+    : this.custom(content: content, role: 'user');
+
+  ChatMessage.assistant({required String content})
+    : this.custom(content: content, role: 'assistant');
+
+  ChatMessage.tool({required String content})
+    : this.custom(content: content, role: 'tool');
+}
+
+class Inference {
   // Model parameters
   final String modelPath;
+
+  /// The dynamic library to use for inference.
+  ///
+  /// For example, on iOS and macOS, this would be DynamicLibrary.open(`llama.framework/llama`).
   final DynamicLibrary dynamicLibrary;
+
+  /// The number of GPU layers to use for inference.
+  ///
+  /// The default value is 99.
+  /// If you want to use CPU only, set this to 0.
   final int gpuLayerCount;
 
   // Runtime objects
@@ -21,14 +59,26 @@ class Llama {
   bool _initialized = false;
   bool get initialized => _initialized;
 
-  Llama({
+  Inference({
     required this.modelPath,
-    required this.dynamicLibrary,
+    DynamicLibrary? dynamicLibrary,
     this.gpuLayerCount = 99,
-  });
+  }) : dynamicLibrary =
+           dynamicLibrary ??
+           switch (Platform.operatingSystem) {
+             'ios' => DynamicLibrary.open('llama.framework/llama'),
+             'macos' => DynamicLibrary.open('llama.framework/llama'),
+             'android' => DynamicLibrary.open('libllama.so'),
+             'linux' => DynamicLibrary.open('libllama.so'),
+             'windows' => DynamicLibrary.open('llama.dll'),
+             _ =>
+               throw UnsupportedError(
+                 'Unsupported platform: ${Platform.operatingSystem}',
+               ),
+           };
 
-  // Initialize the Llama instance, loading the model
-  // and initializing the context.
+  /// Initialize the Llama instance, loading the model
+  /// and initializing the context.
   Future<void> initialize() async {
     if (_initialized) return;
 
@@ -42,6 +92,7 @@ class Llama {
     final modelParams =
         _bindings.llama_model_default_params()..n_gpu_layers = gpuLayerCount;
 
+    // Load the model from the file
     final modelPathUtf8 = modelPath.toNativeUtf8().cast<Char>();
     _model = _bindings.llama_model_load_from_file(modelPathUtf8, modelParams);
     malloc.free(modelPathUtf8);
@@ -157,11 +208,8 @@ class Llama {
     // Convert messages to llama_chat_message format
     final llamaMessages =
         messages.map((msg) {
-          final role = _getRoleString(msg);
-          final content = msg.contentAsString;
-
-          final roleUtf8 = role.toNativeUtf8().cast<Char>();
-          final contentUtf8 = content.toNativeUtf8().cast<Char>();
+          final roleUtf8 = msg.role.toNativeUtf8().cast<Char>();
+          final contentUtf8 = msg.content.toNativeUtf8().cast<Char>();
 
           final chatMessage =
               malloc<llama_chat_message>().ref
@@ -262,12 +310,8 @@ class Llama {
 
         // Create a ChatResult to yield
         yield ChatResult(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          output: AIChatMessage(content: piece),
+          message: ChatMessage.assistant(content: piece),
           finishReason: FinishReason.unspecified, // Not finished yet
-          metadata: {},
-          usage: const LanguageModelUsage(),
-          streaming: true,
         );
 
         // Prepare the next batch with the new token
@@ -287,12 +331,8 @@ class Llama {
     } catch (e) {
       // Yield the final result with the error in metadata
       yield ChatResult(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        output: AIChatMessage(content: ''),
+        message: ChatMessage.assistant(content: ''),
         finishReason: finishReason ?? FinishReason.unspecified,
-        metadata: {'error': e.toString()},
-        usage: const LanguageModelUsage(),
-        streaming: false,
       );
     } finally {
       // Clean up regardless of success or failure
@@ -305,12 +345,8 @@ class Llama {
     // Only yield the final result if we haven't encountered an error
     if (finishReason != null) {
       yield ChatResult(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        output: AIChatMessage(content: ''),
+        message: ChatMessage.assistant(content: ''),
         finishReason: finishReason,
-        metadata: {},
-        usage: const LanguageModelUsage(),
-        streaming: false,
       );
     }
   }
@@ -325,17 +361,6 @@ class Llama {
       malloc.free(msg.content.cast<Utf8>());
     }
     malloc.free(array);
-  }
-
-  // Helper to get role string from ChatMessage
-  String _getRoleString(ChatMessage message) {
-    return switch (message) {
-      final SystemChatMessage _ => 'system',
-      final HumanChatMessage _ => 'user',
-      final AIChatMessage _ => 'assistant',
-      final ToolChatMessage _ => 'tool',
-      final CustomChatMessage custom => custom.role,
-    };
   }
 
   /// Frees all resources associated with the Llama instance,

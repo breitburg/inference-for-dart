@@ -1,5 +1,5 @@
-name: langchain_llama_cpp
-description: "A new Flutter package project."
+name: inference
+description: "Language model inference for Dart and Flutter"
 version: 0.0.1
 publish_to: none
 
@@ -17,11 +17,11 @@ dependencies:
       path: packages/llama_cpp_bindings/
 
   ffi: ^2.1.4
-  langchain: ^0.7.7+2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  
   flutter_lints: ^5.0.0
 
 # For information on the generic Dart part of this file, see the
