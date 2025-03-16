@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -109,7 +108,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     content:
                         'You are a helpful assistant based on ${engine!.model.fetchMetadata().name} model. You\'re running on ${Platform.operatingSystem}. It\'s currently ${DateTime.now().toIso8601String()}.',
                   ),
-                  ChatMessage.human(content: 'What do you know about the environment you\'re in?'),
+                  ChatMessage.human(
+                    content:
+                        'What do you know about the environment you\'re running in and your identity?',
+                  ),
                 ];
 
                 await for (final result in engine!.chat(
