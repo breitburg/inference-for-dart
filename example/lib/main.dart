@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -26,12 +27,12 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String _output = '';
-  Inference? inference;
-  InferenceModelInformation? info;
+  InferenceModelMetadata? info;
+  InferenceEngine? engine;
 
   @override
   void dispose() {
-    inference?.dispose();
+    engine?.dispose();
     super.dispose();
   }
 
@@ -49,7 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    info!.baseName,
+                    info!.baseName ?? 'No Name',
                     style: Theme.of(context).textTheme.headlineSmall,
                     textAlign: TextAlign.center,
                   ),
@@ -60,10 +61,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         border: Border.all(color: Colors.black, width: 1.5),
                         borderRadius: BorderRadius.circular(5),
                       ),
-                      padding: EdgeInsets.symmetric(vertical: 2, horizontal: 5),
+                      padding: EdgeInsets.symmetric(horizontal: 5),
                       child: Text(
-                        info!.sizeLabel,
-                        style: Theme.of(context).textTheme.labelLarge,
+                        info!.sizeLabel ?? 'Unknown',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
@@ -74,7 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
             if (_output.isNotEmpty) ...[Text(_output), SizedBox(height: 30)],
             ElevatedButton(
               onPressed: () async {
-                if (inference == null) {
+                if (engine == null) {
                   final picked = await FilePicker.platform.pickFiles(
                     type: FileType.any,
                     allowMultiple: false,
@@ -84,27 +88,39 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   if (modelPath == null) return;
 
-                  inference = Inference(modelPath: modelPath);
+                  final model = InferenceModel(modelPath);
+
+                  setState(() {
+                    info = model.fetchMetadata();
+                    print(info);
+                  });
+
+                  await Future.delayed(const Duration(milliseconds: 50));
+
+                  engine = InferenceEngine(model);
                 }
 
-                await inference!.initialize();
-                setState(() {
-                  info = inference!.fetchInformation();
-                });
+                await engine!.initialize();
 
                 _output = '';
 
                 final messages = [
-                  ChatMessage.system(content: 'You are Lori, a helpful chatbot'),
-                  ChatMessage.human(content: 'Tell me about yourself'),
+                  ChatMessage.system(
+                    content:
+                        'You are a helpful assistant based on ${engine!.model.fetchMetadata().name} model. You\'re running on ${Platform.operatingSystem}. It\'s currently ${DateTime.now().toIso8601String()}.',
+                  ),
+                  ChatMessage.human(content: 'What do you know about the environment you\'re in?'),
                 ];
 
-                await for (final result in inference!.chat(messages)) {
+                await for (final result in engine!.chat(
+                  messages,
+                  temperature: 0,
+                )) {
                   setState(() => _output += result.message.content);
                   await Future.delayed(const Duration());
                 }
 
-                inference!.dispose();
+                engine!.dispose();
               },
               child: Text('Compute'),
             ),

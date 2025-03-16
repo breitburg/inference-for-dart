@@ -2,37 +2,116 @@ import 'dart:ffi';
 import 'dart:io';
 
 import 'package:ffi/ffi.dart';
-import 'package:inference/inference.dart';
+import 'package:llama_cpp_bindings/llama_cpp_bindings.dart';
 
-export 'package:llama_cpp_bindings/llama_cpp_bindings.dart';
+final _llama = LlamaBindings(switch (Platform.operatingSystem) {
+  'ios' => DynamicLibrary.open('llama.framework/llama'),
+  'macos' => DynamicLibrary.open('llama.framework/llama'),
+  'android' => DynamicLibrary.open('libllama.so'),
+  'linux' => DynamicLibrary.open('libllama.so'),
+  'windows' => DynamicLibrary.open('llama.dll'),
+  _ =>
+    throw UnsupportedError(
+      'Failed to load `llama.cpp` library for \'${Platform.operatingSystem}\'',
+    ),
+});
 
 enum FinishReason { stop, unspecified }
 
-class InferenceModelInformation {
-  final String name;
-  final String architecture;
-  final String type;
-  final String finetune;
-  final String baseName;
-  final String sizeLabel;
-  final String license;
-  final String licenseLink;
+class InferenceModel {
+  final String path;
 
-  InferenceModelInformation._({
-    required this.name,
-    required this.architecture,
-    required this.type,
-    required this.finetune,
-    required this.baseName,
-    required this.sizeLabel,
-    required this.license,
-    required this.licenseLink,
+  const InferenceModel(this.path);
+
+  InferenceModelMetadata fetchMetadata() {
+    final params =
+        malloc<gguf_init_params>().ref
+          ..no_alloc = false
+          ..ctx = nullptr;
+
+    final modelPathUtf8 = path.toNativeUtf8().cast<Char>();
+    final ctx = _llama.gguf_init_from_file(modelPathUtf8, params);
+    malloc.free(modelPathUtf8);
+
+    if (ctx == nullptr) {
+      throw Exception('Failed to load model from path: $path');
+    }
+
+    String? getStringValueOrNull(String key) {
+      final keyUtf8 = key.toNativeUtf8().cast<Char>();
+      final keyId = _llama.gguf_find_key(ctx, keyUtf8);
+      malloc.free(keyUtf8);
+
+      if (keyId == -1) return null;
+
+      final value = _llama.gguf_get_val_str(ctx, keyId);
+      return value.cast<Utf8>().toDartString();
+    }
+
+    try {
+      return InferenceModelMetadata.raw(
+        name: getStringValueOrNull('general.name'),
+        organization: getStringValueOrNull('general.organization'),
+        architecture: getStringValueOrNull('general.architecture'),
+        type: getStringValueOrNull('general.type'),
+        finetune: getStringValueOrNull('general.finetune'),
+        baseName: getStringValueOrNull('general.basename'),
+        sizeLabel: getStringValueOrNull('general.size_label'),
+        license: getStringValueOrNull('general.license'),
+        licenseLink: getStringValueOrNull('general.license.link'),
+        repoUrl: getStringValueOrNull('general.repo_url'),
+      );
+    } finally {
+      _llama.gguf_free(ctx);
+    }
+  }
+
+  @override
+  String toString() {
+    return 'InferenceModel(path: $path)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is InferenceModel && other.path == path;
+  }
+
+  @override
+  int get hashCode => path.hashCode;
+}
+
+class InferenceModelMetadata {
+  final String? name;
+  final String? organization;
+  final String? architecture;
+  final String? type;
+  final String? finetune;
+  final String? baseName;
+  final String? sizeLabel;
+  final String? license;
+  final String? licenseLink;
+  final String? repoUrl;
+
+  InferenceModelMetadata.raw({
+    this.name,
+    this.organization,
+    this.architecture,
+    this.type,
+    this.finetune,
+    this.baseName,
+    this.sizeLabel,
+    this.license,
+    this.licenseLink,
+    this.repoUrl,
   });
 
   @override
   String toString() {
     return 'InferenceModelInformation('
         'name: $name, '
+        'organization: $organization, '
         'architecture: $architecture, '
         'type: $type, '
         'finetune: $finetune, '
@@ -40,7 +119,39 @@ class InferenceModelInformation {
         'sizeLabel: $sizeLabel, '
         'license: $license, '
         'licenseLink: $licenseLink, '
+        'repoUrl: $repoUrl'
         ')';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is InferenceModelMetadata &&
+        other.name == name &&
+        other.organization == organization &&
+        other.architecture == architecture &&
+        other.type == type &&
+        other.finetune == finetune &&
+        other.baseName == baseName &&
+        other.sizeLabel == sizeLabel &&
+        other.license == license &&
+        other.licenseLink == licenseLink &&
+        other.repoUrl == repoUrl;
+  }
+
+  @override
+  int get hashCode {
+    return name.hashCode ^
+        organization.hashCode ^
+        architecture.hashCode ^
+        type.hashCode ^
+        finetune.hashCode ^
+        baseName.hashCode ^
+        sizeLabel.hashCode ^
+        license.hashCode ^
+        licenseLink.hashCode ^
+        repoUrl.hashCode;
   }
 }
 
@@ -49,6 +160,23 @@ class ChatResult {
   final FinishReason finishReason;
 
   ChatResult({required this.message, required this.finishReason});
+
+  @override
+  String toString() {
+    return 'ChatResult(message: $message, finishReason: $finishReason)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is ChatResult &&
+        other.message == message &&
+        other.finishReason == finishReason;
+  }
+
+  @override
+  int get hashCode => message.hashCode ^ finishReason.hashCode;
 }
 
 class ChatMessage {
@@ -69,16 +197,28 @@ class ChatMessage {
 
   ChatMessage.tool({required String content})
     : this.custom(content: content, role: 'tool');
+
+  @override
+  String toString() {
+    return 'ChatMessage(role: $role, content: $content)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is ChatMessage &&
+        other.role == role &&
+        other.content == content;
+  }
+
+  @override
+  int get hashCode => role.hashCode ^ content.hashCode;
 }
 
-class Inference {
+class InferenceEngine {
   // Model parameters
-  final String modelPath;
-
-  /// The dynamic library to use for inference.
-  ///
-  /// For example, on iOS and macOS, this would be DynamicLibrary.open(`llama.framework/llama`).
-  final DynamicLibrary dynamicLibrary;
+  final InferenceModel model;
 
   /// The number of GPU layers to use for inference.
   ///
@@ -87,7 +227,6 @@ class Inference {
   final int gpuLayerCount;
 
   // Runtime objects
-  late LlamaBindings _bindings;
   late Pointer<llama_model> _model;
   late Pointer<llama_vocab> _vocabulary;
 
@@ -95,162 +234,31 @@ class Inference {
   bool _initialized = false;
   bool get initialized => _initialized;
 
-  Inference({
-    required this.modelPath,
-    DynamicLibrary? dynamicLibrary,
-    this.gpuLayerCount = 99,
-  }) : dynamicLibrary =
-           dynamicLibrary ??
-           switch (Platform.operatingSystem) {
-             'ios' => DynamicLibrary.open('llama.framework/llama'),
-             'macos' => DynamicLibrary.open('llama.framework/llama'),
-             'android' => DynamicLibrary.open('libllama.so'),
-             'linux' => DynamicLibrary.open('libllama.so'),
-             'windows' => DynamicLibrary.open('llama.dll'),
-             _ =>
-               throw UnsupportedError(
-                 'Unsupported platform: ${Platform.operatingSystem}',
-               ),
-           };
-
-  InferenceModelInformation fetchInformation() {
-    if (!_initialized) throw Exception('Llama not initialized');
-
-    final params =
-        malloc<gguf_init_params>().ref
-          ..no_alloc = false
-          ..ctx = nullptr;
-
-    final modelPathUtf8 = modelPath.toNativeUtf8().cast<Char>();
-    final ctx = _bindings.gguf_init_from_file(modelPathUtf8, params);
-    malloc.free(modelPathUtf8);
-
-    if (ctx == nullptr) {
-      throw Exception('Failed to load model from path: $modelPath');
-    }
-
-    try {
-      return InferenceModelInformation._(
-        name:
-            _bindings
-                .gguf_get_val_str(
-                  ctx,
-                  _bindings.gguf_find_key(
-                    ctx,
-                    'general.name'.toNativeUtf8().cast<Char>(),
-                  ),
-                )
-                .cast<Utf8>()
-                .toDartString(),
-        architecture:
-            _bindings
-                .gguf_get_val_str(
-                  ctx,
-                  _bindings.gguf_find_key(
-                    ctx,
-                    'general.architecture'.toNativeUtf8().cast<Char>(),
-                  ),
-                )
-                .cast<Utf8>()
-                .toDartString(),
-        type:
-            _bindings
-                .gguf_get_val_str(
-                  ctx,
-                  _bindings.gguf_find_key(
-                    ctx,
-                    'general.type'.toNativeUtf8().cast<Char>(),
-                  ),
-                )
-                .cast<Utf8>()
-                .toDartString(),
-        finetune:
-            _bindings
-                .gguf_get_val_str(
-                  ctx,
-                  _bindings.gguf_find_key(
-                    ctx,
-                    'general.finetune'.toNativeUtf8().cast<Char>(),
-                  ),
-                )
-                .cast<Utf8>()
-                .toDartString(),
-        baseName:
-            _bindings
-                .gguf_get_val_str(
-                  ctx,
-                  _bindings.gguf_find_key(
-                    ctx,
-                    'general.basename'.toNativeUtf8().cast<Char>(),
-                  ),
-                )
-                .cast<Utf8>()
-                .toDartString(),
-        sizeLabel:
-            _bindings
-                .gguf_get_val_str(
-                  ctx,
-                  _bindings.gguf_find_key(
-                    ctx,
-                    'general.size_label'.toNativeUtf8().cast<Char>(),
-                  ),
-                )
-                .cast<Utf8>()
-                .toDartString(),
-        license:
-            _bindings
-                .gguf_get_val_str(
-                  ctx,
-                  _bindings.gguf_find_key(
-                    ctx,
-                    'general.license'.toNativeUtf8().cast<Char>(),
-                  ),
-                )
-                .cast<Utf8>()
-                .toDartString(),
-        licenseLink:
-            _bindings
-                .gguf_get_val_str(
-                  ctx,
-                  _bindings.gguf_find_key(
-                    ctx,
-                    'general.license.link'.toNativeUtf8().cast<Char>(),
-                  ),
-                )
-                .cast<Utf8>()
-                .toDartString(),
-      );
-    } finally {
-      _bindings.gguf_free(ctx);
-    }
-  }
+  InferenceEngine(this.model, {this.gpuLayerCount = 99});
 
   /// Initialize the Llama instance, loading the model
   /// and initializing the context.
   Future<void> initialize() async {
     if (_initialized) return;
 
-    // Load the dynamic library
-    _bindings = LlamaBindings(dynamicLibrary);
-
     // Load all available backends
-    _bindings.ggml_backend_load_all();
+    _llama.ggml_backend_load_all();
 
     // Initialize the model
     final modelParams =
-        _bindings.llama_model_default_params()..n_gpu_layers = gpuLayerCount;
+        _llama.llama_model_default_params()..n_gpu_layers = gpuLayerCount;
 
     // Load the model from the file
-    final modelPathUtf8 = modelPath.toNativeUtf8().cast<Char>();
-    _model = _bindings.llama_model_load_from_file(modelPathUtf8, modelParams);
+    final modelPathUtf8 = model.path.toNativeUtf8().cast<Char>();
+    _model = _llama.llama_model_load_from_file(modelPathUtf8, modelParams);
     malloc.free(modelPathUtf8);
 
     if (_model == nullptr) {
-      throw Exception('Unable to load model from path: $modelPath');
+      throw Exception('Unable to load model from path: ${model.path}');
     }
 
     // Get the vocabulary
-    _vocabulary = _bindings.llama_model_get_vocab(_model);
+    _vocabulary = _llama.llama_model_get_vocab(_model);
 
     _initialized = true;
   }
@@ -260,13 +268,13 @@ class Inference {
   /// The `addBos` parameter controls whether a beginning-of-sequence token
   /// should be added to the beginning of the token list.
   List<int> tokenize(String text, {bool addBos = true}) {
-    if (!_initialized) throw Exception('Llama not initialized');
+    if (!_initialized) throw Exception('Engine not initialized');
 
     final textUtf8 = text.toNativeUtf8().cast<Char>();
 
     // Get the number of tokens
     final tokenCount =
-        -_bindings.llama_tokenize(
+        -_llama.llama_tokenize(
           _vocabulary,
           textUtf8,
           text.length,
@@ -279,7 +287,7 @@ class Inference {
     // Allocate space for tokens and tokenize
     final tokens = malloc<Int32>(tokenCount);
 
-    if (_bindings.llama_tokenize(
+    if (_llama.llama_tokenize(
           _vocabulary,
           textUtf8,
           text.length,
@@ -308,49 +316,44 @@ class Inference {
   Stream<ChatResult> chat(
     List<ChatMessage> messages, {
     int contextLength = 512,
-    double temperature = 0.8,
-    double topP = 0.05,
-    int topK = 0,
+    double temperature = 1,
+    double topP = 1,
     int seed = LLAMA_DEFAULT_SEED,
   }) async* {
-    if (!_initialized) throw Exception('Llama not initialized');
+    if (!_initialized) throw Exception('Engine not initialized');
 
     // Initialize the context
     final contextParams =
-        _bindings.llama_context_default_params()
+        _llama.llama_context_default_params()
           ..n_ctx = contextLength
           ..n_batch = contextLength;
 
-    final context = _bindings.llama_init_from_model(_model, contextParams);
+    final context = _llama.llama_init_from_model(_model, contextParams);
 
     if (context == nullptr) {
-      _bindings.llama_model_free(_model);
+      _llama.llama_model_free(_model);
       throw Exception('Failed to create the llama context');
     }
 
     // Initialize the sampler
-    final sampler = _bindings.llama_sampler_chain_init(
-      _bindings.llama_sampler_chain_default_params(),
+    final sampler = _llama.llama_sampler_chain_init(
+      _llama.llama_sampler_chain_default_params(),
     );
-    _bindings.llama_sampler_chain_add(
+    _llama.llama_sampler_chain_add(
       sampler,
-      _bindings.llama_sampler_init_top_p(topP, 1),
+      _llama.llama_sampler_init_top_p(topP, 1),
     );
-    _bindings.llama_sampler_chain_add(
+    _llama.llama_sampler_chain_add(
       sampler,
-      _bindings.llama_sampler_init_temp(temperature),
+      _llama.llama_sampler_init_temp(temperature),
     );
-    _bindings.llama_sampler_chain_add(
+    _llama.llama_sampler_chain_add(
       sampler,
-      _bindings.llama_sampler_init_dist(seed),
-    );
-    _bindings.llama_sampler_chain_add(
-      sampler,
-      _bindings.llama_sampler_init_top_k(topK),
+      _llama.llama_sampler_init_dist(seed),
     );
 
     // Get the chat template from the model
-    final templatePtr = _bindings.llama_model_chat_template(_model, nullptr);
+    final templatePtr = _llama.llama_model_chat_template(_model, nullptr);
     final template = templatePtr.cast<Utf8>().toDartString();
 
     // Convert messages to llama_chat_message format
@@ -378,7 +381,7 @@ class Inference {
     final buffer = malloc<Char>(bufferSize);
 
     // Apply the template
-    final formattedLength = _bindings.llama_chat_apply_template(
+    final formattedLength = _llama.llama_chat_apply_template(
       template.toNativeUtf8().cast<Char>(),
       messagesArray,
       llamaMessages.length,
@@ -387,8 +390,20 @@ class Inference {
       bufferSize,
     );
 
+    // Helper function to free llama_chat_message resources
+    void freeMessages(
+      List<llama_chat_message> messages,
+      Pointer<llama_chat_message> array,
+    ) {
+      for (var msg in messages) {
+        malloc.free(msg.role.cast<Utf8>());
+        malloc.free(msg.content.cast<Utf8>());
+      }
+      malloc.free(array);
+    }
+
     if (formattedLength < 0 || formattedLength > bufferSize) {
-      _freeMessages(llamaMessages, messagesArray);
+      freeMessages(llamaMessages, messagesArray);
       malloc.free(buffer);
       throw Exception('Failed to apply chat template');
     }
@@ -412,11 +427,11 @@ class Inference {
       }
 
       // Create batch for the tokens
-      var batch = _bindings.llama_batch_get_one(tokensPtr, tokens.length);
+      var batch = _llama.llama_batch_get_one(tokensPtr, tokens.length);
 
       // Skip context space check since llama_kv_self_used_cells is unavailable
       // Process the batch
-      if (_bindings.llama_decode(context, batch) != 0) {
+      if (_llama.llama_decode(context, batch) != 0) {
         malloc.free(tokensPtr);
         throw Exception('Failed to decode batch');
       }
@@ -427,17 +442,17 @@ class Inference {
       // Sample tokens until we hit a stop condition
       while (true) {
         // Sample the next token
-        final newTokenId = _bindings.llama_sampler_sample(sampler, context, -1);
+        final newTokenId = _llama.llama_sampler_sample(sampler, context, -1);
 
         // Check if we reached the end of generation
-        if (_bindings.llama_vocab_is_eog(_vocabulary, newTokenId)) {
+        if (_llama.llama_vocab_is_eog(_vocabulary, newTokenId)) {
           finishReason = FinishReason.stop;
           break;
         }
 
         // Convert token to text
         final pieceBuffer = malloc<Char>(256);
-        final pieceLength = _bindings.llama_token_to_piece(
+        final pieceLength = _llama.llama_token_to_piece(
           _vocabulary,
           newTokenId,
           pieceBuffer,
@@ -464,12 +479,12 @@ class Inference {
 
         // Prepare the next batch with the new token
         final newTokenPtr = malloc<Int32>(1)..value = newTokenId;
-        batch = _bindings.llama_batch_get_one(newTokenPtr, 1);
+        batch = _llama.llama_batch_get_one(newTokenPtr, 1);
 
         // Skip the context space check here as well
 
         // Process the batch
-        if (_bindings.llama_decode(context, batch) != 0) {
+        if (_llama.llama_decode(context, batch) != 0) {
           malloc.free(newTokenPtr);
           throw Exception('Failed to decode batch');
         }
@@ -477,38 +492,20 @@ class Inference {
         malloc.free(newTokenPtr);
       }
     } catch (e) {
-      // Yield the final result with the error in metadata
-      yield ChatResult(
-        message: ChatMessage.assistant(content: ''),
-        finishReason: finishReason ?? FinishReason.unspecified,
-      );
+      rethrow;
     } finally {
       // Clean up regardless of success or failure
-      _freeMessages(llamaMessages, messagesArray);
-      _bindings.llama_sampler_free(sampler);
-      _bindings.llama_free(context);
+      freeMessages(llamaMessages, messagesArray);
+      _llama.llama_sampler_free(sampler);
+      _llama.llama_free(context);
       malloc.free(buffer);
     }
 
     // Only yield the final result if we haven't encountered an error
-    if (finishReason != null) {
-      yield ChatResult(
-        message: ChatMessage.assistant(content: ''),
-        finishReason: finishReason,
-      );
-    }
-  }
-
-  // Helper function to free llama_chat_message resources
-  void _freeMessages(
-    List<llama_chat_message> messages,
-    Pointer<llama_chat_message> array,
-  ) {
-    for (var msg in messages) {
-      malloc.free(msg.role.cast<Utf8>());
-      malloc.free(msg.content.cast<Utf8>());
-    }
-    malloc.free(array);
+    yield ChatResult(
+      message: ChatMessage.assistant(content: ''),
+      finishReason: finishReason,
+    );
   }
 
   /// Frees all resources associated with the Llama instance,
@@ -516,7 +513,7 @@ class Inference {
   /// Frees all resources associated with the Llama instance.
   void dispose() {
     if (!_initialized) return;
-    _bindings.llama_model_free(_model);
+    _llama.llama_model_free(_model);
     _initialized = false;
   }
 }

@@ -20,22 +20,25 @@ Run large language models inference natively in Dart and Flutter, using [`llama.
 
 ## Usage
 
-Run the inference using the following code:
+Run the inference from any `.gguf` model using the following sample code:
 
 ```dart
 import 'package:inference/inference.dart';
 
-void main() {
-  final inference = Inference(
-        // You need to provide the path to the model file
-        modelPath: 'your_model_path.gguf',
+void main() async {
+    final model = InferenceModel(path: 'gpt-5.gguf');
 
-        // Optional: You need to provide the path to the compiled `llama.cpp` backend for your target platform
-        dynamicLibrary: DynamicLibrary.open('llama.framework/llama'),
+    // Fetch and print the metadata of the model (e.g. name, flavor, etc.)
+    final metadata = model.fetchMetadata();
+    print(metadata);
+
+    final engine = InferenceEngine(
+        // Required: The model to use for inference
+        model,
     );
 
     // Initialize the inference and load the model into memory
-    await inference!.initialize();
+    await engine.initialize();
 
     // Define the messages to send to the model
     final messages = [
@@ -43,11 +46,11 @@ void main() {
     ];
 
     // Run the inference and print the output
-    await for (final result in inference!.chat(messages)) {
+    await for (final result in engine.chat(messages)) {
         print(result.message.content);
     }
 
     // Offload the model from memory
-    inference!.dispose();
+    engine.dispose();
 }
 ```
