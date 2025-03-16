@@ -11,9 +11,6 @@ class InferenceEngine {
   final InferenceModel model;
 
   /// The number of GPU layers to use for inference.
-  ///
-  /// The default value is 99.
-  /// If you want to use CPU only, set this to 0.
   final int gpuLayerCount;
 
   // Runtime objects
@@ -268,8 +265,6 @@ class InferenceEngine {
         final newTokenPtr = malloc<Int32>(1)..value = newTokenId;
         batch = llama.llama_batch_get_one(newTokenPtr, 1);
 
-        // Skip the context space check here as well
-
         // Process the batch
         if (llama.llama_decode(context, batch) != 0) {
           malloc.free(newTokenPtr);
@@ -278,8 +273,6 @@ class InferenceEngine {
 
         malloc.free(newTokenPtr);
       }
-    } catch (e) {
-      rethrow;
     } finally {
       // Clean up regardless of success or failure
       freeMessages(llamaMessages, messagesArray);

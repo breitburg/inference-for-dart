@@ -13,7 +13,13 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(title: 'Flutter Demo', home: HomeScreen());
+    return MaterialApp(
+      title: 'Flutter Demo',
+      home: HomeScreen(),
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSwatch(primarySwatch: Colors.grey),
+      ),
+    );
   }
 }
 
@@ -38,96 +44,84 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(30),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (info != null) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    info!.baseName ?? 'No Name',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(width: 10),
-                  Center(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.black, width: 1.5),
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      padding: EdgeInsets.symmetric(horizontal: 5),
-                      child: Text(
-                        info!.sizeLabel ?? 'Unknown',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
+      body: ListView(
+        padding: const EdgeInsets.all(30) + MediaQuery.of(context).padding,
+        children: [
+          if (info != null) ...[
+            Row(
+              children: [
+                Text(
+                  info!.baseName ?? 'No Name',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+
+                SizedBox(width: 10),
+                Center(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.black, width: 1.5),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    padding: EdgeInsets.symmetric(horizontal: 5),
+                    child: Text(
+                      info!.sizeLabel ?? 'Unknown',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                ],
-              ),
-              SizedBox(height: 30),
-            ],
-            if (_output.isNotEmpty) ...[Text(_output), SizedBox(height: 30)],
-            ElevatedButton(
-              onPressed: () async {
-                if (engine == null) {
-                  final picked = await FilePicker.platform.pickFiles(
-                    type: FileType.any,
-                    allowMultiple: false,
-                  );
-
-                  final modelPath = picked?.files.first.path;
-
-                  if (modelPath == null) return;
-
-                  final model = InferenceModel(modelPath);
-
-                  setState(() {
-                    info = model.fetchMetadata();
-                    print(info);
-                  });
-
-                  await Future.delayed(const Duration(milliseconds: 50));
-
-                  engine = InferenceEngine(model);
-                }
-
-                await engine!.initialize();
-
-                _output = '';
-
-                final messages = [
-                  ChatMessage.system(
-                    content:
-                        'You are a helpful assistant based on ${engine!.model.fetchMetadata().name} model. You\'re running on ${Platform.operatingSystem}. It\'s currently ${DateTime.now().toIso8601String()}.',
-                  ),
-                  ChatMessage.human(
-                    content:
-                        'What do you know about the environment you\'re running in and your identity?',
-                  ),
-                ];
-
-                await for (final result in engine!.chat(
-                  messages,
-                  temperature: 0,
-                )) {
-                  setState(() => _output += result.message.content);
-                  await Future.delayed(const Duration());
-                }
-
-                engine!.dispose();
-              },
-              child: Text('Compute'),
+                ),
+              ],
             ),
+            SizedBox(height: 30),
           ],
-        ),
+
+          if (_output.isNotEmpty) ...[Text(_output), SizedBox(height: 30)],
+          ElevatedButton(
+            onPressed: () async {
+              if (engine == null) {
+                final picked = await FilePicker.platform.pickFiles(
+                  type: FileType.any,
+                  allowMultiple: false,
+                );
+
+                final modelPath = picked?.files.first.path;
+
+                if (modelPath == null) return;
+
+                final model = InferenceModel(modelPath);
+
+                setState(() => info = model.fetchMetadata());
+
+                await Future.delayed(const Duration(milliseconds: 50));
+
+                engine = InferenceEngine(model);
+              }
+
+              await engine!.initialize();
+
+              _output = '';
+
+              final messages = [
+                ChatMessage.system(
+                  content:
+                      'You are a helpful assistant based on ${engine!.model.fetchMetadata().baseName} model. You\'re running on ${Platform.operatingSystem}. It\'s currently ${DateTime.now().toIso8601String()}.',
+                ),
+                ChatMessage.human(
+                  content:
+                      'What do you know about the environment you\'re running in and your identity?',
+                ),
+              ];
+
+              await for (final result in engine!.chat(messages)) {
+                setState(() => _output += result.message.content);
+                await Future.delayed(const Duration());
+              }
+            },
+            child: Text('Compute'),
+          ),
+        ],
       ),
     );
   }
