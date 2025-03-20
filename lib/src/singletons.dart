@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:llama_cpp_bindings/llama_cpp_bindings.dart';
 
-final llama = LlamaBindings(switch (Platform.operatingSystem) {
+final _dynamicLibrary = switch (Platform.operatingSystem) {
   'ios' => DynamicLibrary.open('llama.framework/llama'),
   'macos' => DynamicLibrary.open('llama.framework/llama'),
   'android' => DynamicLibrary.open('libllama.so'),
@@ -13,4 +13,6 @@ final llama = LlamaBindings(switch (Platform.operatingSystem) {
     throw UnsupportedError(
       'Failed to load `llama.cpp` library for \'${Platform.operatingSystem}\'',
     ),
-});
+};
+
+final llama = LlamaBindings(_dynamicLibrary);

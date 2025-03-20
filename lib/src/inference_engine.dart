@@ -257,7 +257,7 @@ class InferenceEngine {
 
         // Create a ChatResult to yield
         yield ChatResult(
-          message: ChatMessage.assistant(content: piece),
+          message: ChatMessage.assistant(piece),
           finishReason: FinishReason.unspecified, // Not finished yet
         );
 
@@ -283,7 +283,7 @@ class InferenceEngine {
 
     // Only yield the final result if we haven't encountered an error
     yield ChatResult(
-      message: ChatMessage.assistant(content: ''),
+      message: ChatMessage.assistant(''),
       finishReason: finishReason,
     );
   }

@@ -16,7 +16,9 @@ Run large language models inference natively in Dart and Flutter, using [`llama.
 
 2. Run `flutter pub get`.
 
-3. Compile the [`llama.cpp`](https://github.com/ggml-org/llama.cpp) backend for your target platform and link it to your native project. For example, in iOS you need to open the Xcode project and add `llama.xcframework` to the `Frameworks, Libraries, and Embedded Content` section.
+3. Compile the [`llama.cpp`](https://github.com/ggml-org/llama.cpp) backend for your target platform and link it to your native project.
+
+    _For iOS you need to open the Xcode project and add `llama.xcframework` to the 'Frameworks, Libraries, and Embedded Content' section, for Linux you need to compile `libllama.so` and link it to your project, etc._
 
 ## Usage
 
@@ -26,31 +28,44 @@ Run the inference from any `.gguf` model using the following sample code:
 import 'package:inference/inference.dart';
 
 void main() async {
-    final model = InferenceModel(path: 'gpt-5.gguf');
+    // Create a model object from the path to the model file
+    final model = InferenceModel(path: 'your_model.gguf');
 
     // Fetch and print the metadata of the model (e.g. name, flavor, etc.)
     final metadata = model.fetchMetadata();
-    print(metadata);
+    print('${metadata.name} by ${metadata.organization} under ${metadata.license}');
 
-    final engine = InferenceEngine(
-        // Required: The model to use for inference
-        model,
-    );
+    // Create an inference engine using the model
+    final engine = InferenceEngine(model);
 
-    // Initialize the inference and load the model into memory
+    // Load the model into memory, create context, vocabulary, etc.
     await engine.initialize();
 
     // Define the messages to send to the model
     final messages = [
-        ChatMessage.human(content: 'Why is the sky blue?'),
+        ChatMessage.system(
+            'You are a helpful assistant running on ${Platform.operatingSystem}.'
+        ),
+        ChatMessage.human('Why is the sky blue?'),
     ];
 
-    // Run the inference and print the output
-    await for (final result in engine.chat(messages)) {
-        print(result.message.content);
+    // Run the inference and print the output parts
+    await for (final part in engine.chat(messages)) {
+        print(part.message.content);
     }
 
-    // Offload the model from memory
+    // Offload the model from memory and free resources
     engine.dispose();
 }
 ```
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+Llama.cpp is a project by [GGML](https://ggml.ai/), and this project is built on top of it. Special thanks to:
+
+- [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) for the C++ backend.
+- [i-Naji/llama_cpp_dart](https://github.com/i-Naji/llama_cpp_dart) for the automated Dart bindings.

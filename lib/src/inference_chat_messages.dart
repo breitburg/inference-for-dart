@@ -28,20 +28,20 @@ class ChatMessage {
   final String role;
   final String content;
 
-  ChatMessage.custom({required this.content, required this.role})
+  ChatMessage.custom(this.content, {required this.role})
     : assert(role.isNotEmpty);
 
-  ChatMessage.system({required String content})
-    : this.custom(content: content, role: 'system');
+  ChatMessage.system(String content)
+    : this.custom(content, role: 'system');
 
-  ChatMessage.human({required String content})
-    : this.custom(content: content, role: 'user');
+  ChatMessage.human(String content)
+    : this.custom(content, role: 'user');
 
-  ChatMessage.assistant({required String content})
-    : this.custom(content: content, role: 'assistant');
+  ChatMessage.assistant(String content)
+    : this.custom(content, role: 'assistant');
 
-  ChatMessage.tool({required String content})
-    : this.custom(content: content, role: 'tool');
+  ChatMessage.tool(String content)
+    : this.custom(content, role: 'tool');
 
   @override
   String toString() {

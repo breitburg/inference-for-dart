@@ -105,12 +105,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
               final messages = [
                 ChatMessage.system(
-                  content:
-                      'You are a helpful assistant based on ${engine!.model.fetchMetadata().baseName} model. You\'re running on ${Platform.operatingSystem}. It\'s currently ${DateTime.now().toIso8601String()}.',
+                  'You are a helpful assistant based on ${engine!.model.fetchMetadata().baseName} model. You\'re running on ${Platform.operatingSystem}. It\'s currently ${DateTime.now().toIso8601String()}.',
                 ),
                 ChatMessage.human(
-                  content:
-                      'What do you know about the environment you\'re running in and your identity?',
+                  'What do you know about the environment you\'re running in and your identity?',
                 ),
               ];
 
