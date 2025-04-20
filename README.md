@@ -1,17 +1,18 @@
 # Inference for Dart and Flutter
 
-Run large language models inference natively in Dart and Flutter, using [`llama.cpp`](https://github.com/ggml-org/llama.cpp) as a backend.
+Run large language model inference from Dart and Flutter, using [`llama.cpp`](https://github.com/ggml-org/llama.cpp) as a backend. The API is designed to be human-friendly and to follow the [Dart design guidelines](https://dart.dev/effective-dart/design).
 
-> **Note:** This is a work in progress and is not yet ready for production use. API is subject to change.
+> [!WARNING]  
+> This is a work in progress and is not yet ready for production use. The API is subject to change.
 
 ## Installation
 
 1. Add the following to your `pubspec.yaml`:
     ```yaml
     dependencies:
-    inference:
-        git:
-        url: https://github.com/breitburg/inference
+        inference:
+            git:
+            url: https://github.com/breitburg/inference-for-dart
     ```
 
 2. Run `flutter pub get`.
