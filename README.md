@@ -3,7 +3,7 @@
 Run large language model inference from Dart and Flutter, using [`llama.cpp`](https://github.com/ggml-org/llama.cpp) as a backend. The API is designed to be human-friendly and to follow the [Dart design guidelines](https://dart.dev/effective-dart/design).
 
 > [!WARNING]  
-> This is a work in progress and is not yet ready for production use. The API is subject to change.
+> This is a work in progress and not ready for production use. The API is subject to change.
 
 ## Installation
 
