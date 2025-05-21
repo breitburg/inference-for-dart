@@ -12,28 +12,28 @@ Run large language model inference from Dart and Flutter, using [`llama.cpp`](ht
     dependencies:
         inference:
             git:
-            url: https://github.com/breitburg/inference-for-dart
+                url: https://github.com/breitburg/inference-for-dart
     ```
 
 2. Run `flutter pub get`.
 
 3. Compile the [`llama.cpp`](https://github.com/ggml-org/llama.cpp) backend for your target platform and link it to your native project.
 
-    _For iOS you need to open the Xcode project and add `llama.xcframework` to the 'Frameworks, Libraries, and Embedded Content' section, for Linux you need to compile `libllama.so` and link it to your project, etc._
+    _For iOS, you need to open the Xcode project and add `llama.xcframework` to the 'Frameworks, Libraries, and Embedded Content' section; for Linux, you need to compile `libllama.so` and link it to your project, etc._
 
 ## Prerequisites
 
-### Mode Support
+### Model Support
 
-You can run inference from any `.gguf` model, downloaded in runtime or embedded within the app. Search ['GGUF' on HuggingFace](https://huggingface.co/models?sort=trending&search=GGUF) to find and download the model file.
+You can run inference from any `.gguf` model, downloaded at runtime or embedded within the app. Search ['GGUF' on HuggingFace](https://huggingface.co/models?sort=trending&search=GGUF) to find and download the model file.
 
-For the up to date model availability see [llama.cpp's README](https://github.com/ggml-org/llama.cpp?tab=readme-ov-file#text-only).
+For the up-to-date model availability, see [llama.cpp's README](https://github.com/ggml-org/llama.cpp?tab=readme-ov-file#text-only).
 
 ### RAM Requirements
 
 Running inference with large language models requires sufficient memory resources. The model must be fully loaded into RAM (or VRAM for GPU acceleration) before any inference can begin.
 
-For example, the [OLMo 2 (7B) Instruct model with Q4_K_S quantization](https://huggingface.co/allenai/OLMo-2-1124-7B-Instruct-GGUF/blob/main/olmo-2-1124-7B-instruct-Q4_K_S.gguf) is 4.25 GB.
+For example, the [OLMo 2 (7B) Instruct model with `Q4_K_S` quantization](https://huggingface.co/allenai/OLMo-2-1124-7B-Instruct-GGUF/blob/main/olmo-2-1124-7B-instruct-Q4_K_S.gguf) is 4.25 GB.
 
 To estimate the minimum RAM required for inference, use this formula:
 
