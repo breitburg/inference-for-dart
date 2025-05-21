@@ -13,9 +13,6 @@ class InferenceEngine {
   /// The number of GPU layers to use for inference.
   final int gpuLayerCount;
 
-  /// Optional callback for handling log messages
-  final void Function(String message)? logCallback;
-
   // Runtime objects
   late Pointer<llama_model> _model;
   late Pointer<llama_vocab> _vocabulary;
@@ -34,7 +31,7 @@ class InferenceEngine {
   bool _initialized = false;
   bool get initialized => _initialized;
 
-  InferenceEngine(this.model, {this.gpuLayerCount = 0, this.logCallback});
+  InferenceEngine(this.model, {this.gpuLayerCount = 0});
 
   /// Initialize the Llama instance, loading the model
   /// and initializing the context.
