@@ -1,5 +1,6 @@
 library;
 
-export 'package:inference/src/inference_engine.dart';
-export 'package:inference/src/inference_chat_messages.dart';
-export 'package:inference/src/inference_model.dart';
+export 'package:inference/src/engine.dart';
+export 'package:inference/src/chat_messages.dart';
+export 'package:inference/src/model.dart';
+export 'package:inference/src/low_level.dart' show lowLevelInference;

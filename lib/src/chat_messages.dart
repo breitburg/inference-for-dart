@@ -1,4 +1,4 @@
-enum FinishReason { stop, unspecified }
+enum FinishReason { stop, error, unspecified }
 
 class ChatResult {
   final ChatMessage message;

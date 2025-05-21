@@ -2,7 +2,7 @@
 import 'dart:ffi';
 
 import 'package:ffi/ffi.dart';
-import 'package:inference/src/singletons.dart';
+import 'package:inference/src/low_level.dart';
 import 'package:llama_cpp_bindings/llama_cpp_bindings.dart';
 
 class InferenceModel {
@@ -17,7 +17,7 @@ class InferenceModel {
           ..ctx = nullptr;
 
     final modelPathUtf8 = path.toNativeUtf8().cast<Char>();
-    final ctx = llama.gguf_init_from_file(modelPathUtf8, params);
+    final ctx = lowLevelInference.bindings.gguf_init_from_file(modelPathUtf8, params);
     malloc.free(modelPathUtf8);
 
     if (ctx == nullptr) {
@@ -26,12 +26,12 @@ class InferenceModel {
 
     String? getStringValueOrNull(String key) {
       final keyUtf8 = key.toNativeUtf8().cast<Char>();
-      final keyId = llama.gguf_find_key(ctx, keyUtf8);
+      final keyId = lowLevelInference.bindings.gguf_find_key(ctx, keyUtf8);
       malloc.free(keyUtf8);
 
       if (keyId == -1) return null;
 
-      final value = llama.gguf_get_val_str(ctx, keyId);
+      final value = lowLevelInference.bindings.gguf_get_val_str(ctx, keyId);
       return value.cast<Utf8>().toDartString();
     }
 
@@ -49,7 +49,7 @@ class InferenceModel {
         repoUrl: getStringValueOrNull('general.repo_url'),
       );
     } finally {
-      llama.gguf_free(ctx);
+      lowLevelInference.bindings.gguf_free(ctx);
     }
   }
 
