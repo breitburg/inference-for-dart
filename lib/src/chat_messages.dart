@@ -1,10 +1,11 @@
 enum FinishReason { stop, error, unspecified }
 
 class ChatResult {
-  final ChatMessage message;
-  final FinishReason finishReason;
+  final ChatMessage? message;
+  final FinishReason? finishReason;
 
-  ChatResult({required this.message, required this.finishReason});
+  ChatResult({this.message, this.finishReason})
+    : assert(message != null || finishReason != null);
 
   @override
   String toString() {
@@ -31,17 +32,14 @@ class ChatMessage {
   ChatMessage.custom(this.content, {required this.role})
     : assert(role.isNotEmpty);
 
-  ChatMessage.system(String content)
-    : this.custom(content, role: 'system');
+  ChatMessage.system(String content) : this.custom(content, role: 'system');
 
-  ChatMessage.human(String content)
-    : this.custom(content, role: 'user');
+  ChatMessage.human(String content) : this.custom(content, role: 'user');
 
   ChatMessage.assistant(String content)
     : this.custom(content, role: 'assistant');
 
-  ChatMessage.tool(String content)
-    : this.custom(content, role: 'tool');
+  ChatMessage.tool(String content) : this.custom(content, role: 'tool');
 
   @override
   String toString() {

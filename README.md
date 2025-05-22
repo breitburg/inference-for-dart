@@ -3,7 +3,7 @@
 Run large language model inference from Dart and Flutter, using [`llama.cpp`](https://github.com/ggml-org/llama.cpp) as a backend. The API is designed to be human-friendly and to follow the [Dart design guidelines](https://dart.dev/effective-dart/design).
 
 > [!WARNING]  
-> This is a work in progress and not ready for production use. The API is subject to change.
+> This is a work in progress and not ready for production use. The API is subject to change. Currently, the API is blocking the main thread, but it will be changed to use isolates in the future.
 
 ## Installation
 
@@ -44,7 +44,7 @@ Total RAM ≈ Model Weights + KV Cache + Inference Overhead
 1. **Model Weights**: 4.25 GB × 1.1 ≈ 4.7 GB
    - Quantized models typically require 1.0-1.2× their file size in memory.
 
-2. **KV Cache**: ~100-200 MB (with default 512 token context)
+2. **KV Cache**: ~100-200 MB (with default 1024 token context)
    - Calculated as: 2 × n_layers × context_length × (n_heads_kv × head_size) × data_type_size
    - Scales linearly with context length.
 
@@ -57,48 +57,80 @@ Total Estimated RAM: **~5.0-5.1 GB minimum**
 
 ## Usage
 
+### Models and Metadata
+
+Before running inference and loading the full model weights into memory, you can inspect the model metadata to fetch its name, authors, the license, and understand its capabilities and requirements.
+
 ```dart
-import 'package:inference/inference.dart';
+// Create a model instance from a file path (not loaded yet)
+final model = InferenceModel(path: 'path/to/model.gguf');
 
-void main() async {
-    // Create a model object from the path to the model file
-    final model = InferenceModel(path: 'path/to/model.gguf');
-
-    // Fetch and print the metadata of the model (e.g. name, flavor, etc.)
-    final metadata = model.fetchMetadata();
-    print('${metadata.name} by ${metadata.organization} under ${metadata.license}');
-
-    // Create an inference engine using the model
-    final engine = InferenceEngine(model);
-
-    // Load the model into memory, create context, vocabulary, etc.
-    await engine.initialize();
-
-    // Define the messages to send to the model
-    final messages = [
-        ChatMessage.system(
-            'You are a helpful assistant running on ${Platform.operatingSystem}.'
-        ),
-        ChatMessage.human('Why is the sky blue?'),
-    ];
-
-    // Run the inference and print the output parts
-    await for (final part in engine.chat(messages)) {
-        print(part.message.content);
-    }
-
-    // Offload the model from memory and free resources
-    engine.dispose();
-}
+// Retrieve and display model metadata without loading the model
+final metadata = model.fetchMetadata();
+print('${metadata.name} by ${metadata.organization} under ${metadata.license}');
 ```
 
-You are also able to provide a custom dynamic library instance as well as re-route logging using the `lowLevelInference` singleton:
+### Initializing the Inference Engine
+
+The `InferenceEngine` manages the model's lifecycle, including initialization and cleanup.
 
 ```dart
+// Create an inference engine with the loaded model
+final engine = InferenceEngine(model);
+
+// Initialize the engine (loads model into memory, prepares context, etc.)
+engine.initialize();
+
+// Dispose of the engine when done to free resources
+engine.dispose();
+```
+
+> **Tip:** Always dispose of resources (such as the inference engine) when they are no longer needed to avoid memory leaks.
+
+### Performing Chat Inference
+
+Interact with the model using structured chat messages for conversational AI scenarios.
+
+```dart
+// Prepare a list of chat messages with roles
+final messages = [
+    ChatMessage.system('You are a helpful assistant running on ${Platform.operatingSystem}.'),
+    ChatMessage.human('Why is the sky blue?'),
+];
+
+// Run inference and handle the output
+engine.chat(
+    messages,
+    onResult: (result) => stdout.write(result.message?.content ?? ""),
+);
+```
+
+### Tokenizing and Detokenizing Text
+
+You can convert text to tokens, and convert tokens back to text as needed for your application and evaluations.
+
+```dart
+// Tokenize input text
+List<int> tokens = engine.tokenize("Hello, world!");
+print("Tokens: $tokens"); // Example output: [1, 15043, 29892, 0]
+
+// Detokenize tokens back to text
+String text = engine.detokenize([1, 15043, 29892, 0]);
+print("Text: $text"); // Output: "Hello, world!"
+```
+
+### Advanced Configuration
+
+Customize library behavior, such as specifying a dynamic library path or handling logs.
+
+```dart
+// Set a custom dynamic library and log callback
 lowLevelInference
-    ..dynamicLibrary = DynamicLibrary.open("path/to/libllama.so")
+    ..dynamicLibrary = DynamicLibrary.open("path/to/libllama.so") // Use .dylib for macOS, .dll for Windows
     ..logCallback = (String message) => print('[llama.cpp] $message');
 ```
+
+
 
 ## License
 

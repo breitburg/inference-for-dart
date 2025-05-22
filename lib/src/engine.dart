@@ -35,7 +35,7 @@ class InferenceEngine {
 
   /// Initialize the Llama instance, loading the model
   /// and initializing the context.
-  Future<void> initialize() async {
+  void initialize() {
     if (_initialized) return;
 
     // Load all available backends
@@ -69,7 +69,7 @@ class InferenceEngine {
 
   /// Get a context appropriate for the given length
   /// Reuses existing context if it's large enough
-  Future<Pointer<llama_context>> _getContext(int requiredLength) async {
+  Pointer<llama_context> _getContext(int requiredLength) {
     if (!_initialized) throw Exception('Engine not initialized');
 
     // If we already have a context with sufficient capacity, reuse it
@@ -111,11 +111,11 @@ class InferenceEngine {
   ///
   /// The `special` parameter controls whether special tokens should be handled.
   /// The `parseSpecial` parameter controls whether to parse special tokens.
-  Future<List<int>> tokenize(
+  List<int> tokenize(
     String text, {
     bool parseSpecial = true,
     bool special = false,
-  }) async {
+  }) {
     if (!_initialized) throw Exception('Engine not initialized');
 
     final textUtf8 = text.toNativeUtf8().cast<Char>();
@@ -171,11 +171,11 @@ class InferenceEngine {
   ///
   /// The `removeSpecial` parameter controls whether special tokens
   /// should be removed from the output text.
-  Future<String> detokenize(
+  String detokenize(
     List<int> tokens, {
     bool removeSpecial = true,
     bool unparseSpecial = false,
-  }) async {
+  }) {
     if (!_initialized) throw Exception('Engine not initialized');
 
     if (tokens.isEmpty) return '';
@@ -236,13 +236,15 @@ class InferenceEngine {
 
   /// Creates a sampler chain with the specified parameters
   Pointer<llama_sampler> _createSampler({
-    double temperature = 1.0,
+    double temperature = 0.8,
     double topP = 1.0,
     double topK = 40,
     double minP = 0.05,
     double typicalP = 1.0,
     int seed = LLAMA_DEFAULT_SEED,
     double repeatPenalty = 1.1,
+    double frequencyPenalty = 0.0,
+    double presencePenalty = 0.0,
     int repeatPenaltyTokens = 64,
   }) {
     final chainParams =
@@ -259,10 +261,10 @@ class InferenceEngine {
     if (repeatPenalty > 1.0) {
       final penaltySampler = lowLevelInference.bindings
           .llama_sampler_init_penalties(
-            repeatPenaltyTokens, // last n tokens to consider
-            repeatPenalty, // repeat penalty
-            0.0, // frequency penalty
-            0.0, // presence penalty
+            repeatPenaltyTokens,
+            repeatPenalty,
+            frequencyPenalty,
+            presencePenalty,
           );
 
       if (penaltySampler == nullptr) {
@@ -360,10 +362,10 @@ class InferenceEngine {
   }
 
   /// Generates a chat response for a list of messages.
-  Stream<ChatResult> chat(
+  void chat(
     List<ChatMessage> messages, {
-    int contextLength = 512,
-    int maxTokens = 512,
+    int contextLength = 1024,
+    int maxTokens = 1024,
     double temperature = 0.8,
     double topP = 0.95,
     double topK = 40,
@@ -372,11 +374,12 @@ class InferenceEngine {
     double repeatPenalty = 1.1,
     int repeatPenaltyTokens = 64,
     int seed = LLAMA_DEFAULT_SEED,
-  }) async* {
+    Function(ChatResult result)? onResult,
+  }) {
     if (!_initialized) throw Exception('Engine not initialized');
 
     // Get or create appropriate context
-    final context = await _getContext(contextLength);
+    final context = _getContext(contextLength);
 
     // Clean the KV cache
     lowLevelInference.bindings.llama_kv_self_clear(context);
@@ -458,7 +461,7 @@ class InferenceEngine {
       );
 
       // Tokenize the formatted chat
-      final tokens = await tokenize(formattedChat);
+      final tokens = tokenize(formattedChat);
 
       // Process in batches of up to n_batch tokens
       final maxBatchSize = lowLevelInference.bindings.llama_n_batch(context);
@@ -525,10 +528,7 @@ class InferenceEngine {
         malloc.free(pieceBuffer);
 
         // Create a ChatResult to yield just the new piece
-        yield ChatResult(
-          message: ChatMessage.assistant(piece),
-          finishReason: FinishReason.unspecified, // Not finished yet
-        );
+        onResult?.call(ChatResult(message: ChatMessage.assistant(piece)));
 
         // Prepare a new batch with the new token
         final newTokenPtr = malloc<Int32>(1);
@@ -549,16 +549,10 @@ class InferenceEngine {
       }
 
       // Final result with stop reason - empty message since we already streamed the content
-      yield ChatResult(
-        message: ChatMessage.assistant(''),
-        finishReason: FinishReason.stop,
-      );
+      onResult?.call(ChatResult(finishReason: FinishReason.stop));
     } catch (e) {
       // In case of error, yield a result with the error
-      yield ChatResult(
-        message: ChatMessage.assistant(''),
-        finishReason: FinishReason.error,
-      );
+      onResult?.call(ChatResult(finishReason: FinishReason.error));
     } finally {
       // Free all allocated resources
       lowLevelInference.bindings.llama_sampler_free(sampler);
@@ -580,7 +574,7 @@ class InferenceEngine {
   }
 
   /// Frees all resources associated with the Llama instance.
-  Future<void> dispose() async {
+  void dispose() {
     if (!_initialized) return;
 
     // Free context if exists
