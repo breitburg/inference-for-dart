@@ -18,8 +18,9 @@ void _ffiStaticLogHandler(
   Pointer<Void> userData,
 ) {
   if (_staticLogHandler == null) return;
-  final message = text.cast<Utf8>().toDartString();
-  _staticLogHandler!(message.trim());
+  final message = text.cast<Utf8>().toDartString().trim();
+  if (message.isEmpty) return;
+  _staticLogHandler!(message);
 }
 
 class _LowLevelInference {
