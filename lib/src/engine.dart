@@ -30,15 +30,15 @@ class InferenceEngine {
   });
 
   // State flags
-  bool _initialized = false;
-  bool get initialized => _initialized;
+  bool _isInitialized = false;
+  bool get isInitialized => _isInitialized;
 
   InferenceEngine(this.model, {this.gpuLayerCount = 0});
 
   /// Initialize the Llama instance, loading the model
   /// and initializing the context.
   void initialize() {
-    if (_initialized) return;
+    if (_isInitialized) return;
 
     // Load all available backends
     lowLevelInference.bindings.ggml_backend_load_all();
@@ -66,7 +66,7 @@ class InferenceEngine {
     // Get the vocabulary
     _vocabulary = lowLevelInference.bindings.llama_model_get_vocab(_model);
 
-    _initialized = true;
+    _isInitialized = true;
   }
 
   /// Get a context appropriate for the given length
@@ -75,7 +75,7 @@ class InferenceEngine {
     int requiredLength, {
     bool forEmbeddings = false,
   }) {
-    if (!_initialized) throw Exception('Engine not initialized');
+    if (!_isInitialized) throw Exception('Engine not initialized');
 
     // If we already have a context with sufficient capacity, reuse it
     if (_context != null &&
@@ -128,7 +128,7 @@ class InferenceEngine {
     int contextLength = 2048,
     bool normalize = true,
   }) {
-    if (!_initialized) throw Exception('Engine not initialized');
+    if (!_isInitialized) throw Exception('Engine not initialized');
     if (text.isEmpty) throw ArgumentError('Text cannot be empty');
 
     // Get context with embeddings enabled
@@ -264,7 +264,7 @@ class InferenceEngine {
     bool parseSpecial = true,
     bool special = false,
   }) {
-    if (!_initialized) throw Exception('Engine not initialized');
+    if (!_isInitialized) throw Exception('Engine not initialized');
 
     final textUtf8 = text.toNativeUtf8().cast<Char>();
 
@@ -324,7 +324,7 @@ class InferenceEngine {
     bool removeSpecial = true,
     bool unparseSpecial = false,
   }) {
-    if (!_initialized) throw Exception('Engine not initialized');
+    if (!_isInitialized) throw Exception('Engine not initialized');
 
     if (tokens.isEmpty) return '';
 
@@ -398,7 +398,7 @@ class InferenceEngine {
     InferenceSampler? customSampler,
     Function(ChatResult result)? onResult,
   }) {
-    if (!_initialized) throw Exception('Engine not initialized');
+    if (!_isInitialized) throw Exception('Engine not initialized');
 
     // Get or create appropriate context
     final context = _getContext(contextLength);
@@ -596,7 +596,7 @@ class InferenceEngine {
 
   /// Frees all resources associated with the Llama instance.
   void dispose() {
-    if (!_initialized) return;
+    if (!_isInitialized) return;
 
     // Free context if exists
     if (_context != null) {
@@ -609,6 +609,6 @@ class InferenceEngine {
     _modelFinalizer.detach(this);
     lowLevelInference.bindings.llama_model_free(_model);
 
-    _initialized = false;
+    _isInitialized = false;
   }
 }

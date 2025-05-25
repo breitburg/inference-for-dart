@@ -65,7 +65,7 @@ Before running inference and loading the full model weights into memory, you can
 // Create a model instance from a file path (not loaded yet)
 final model = InferenceModel(path: 'path/to/model.gguf');
 
-// Retrieve and display model metadata without loading the model
+// Retrieve and display model metadata
 final metadata = model.fetchMetadata();
 print(
   "${metadata['general.name']} by ${metadata['general.organization']} under ${metadata['general.license']}",
@@ -96,7 +96,7 @@ Interact with the model using structured chat messages for conversational AI sce
 ```dart
 // Prepare a list of chat messages with roles
 final messages = [
-    ChatMessage.system('You are a helpful assistant running on ${Platform.operatingSystem}.'),
+    ChatMessage.system('You are an AI running on ${Platform.operatingSystem}.'),
     ChatMessage.human('Why is the sky blue?'),
 ];
 
