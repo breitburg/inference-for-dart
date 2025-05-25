@@ -1,4 +1,5 @@
 import 'dart:ffi';
+import 'dart:math' show sqrt;
 
 import 'package:ffi/ffi.dart';
 import 'package:inference/src/chat_messages.dart';
@@ -69,7 +70,10 @@ class InferenceEngine {
 
   /// Get a context appropriate for the given length
   /// Reuses existing context if it's large enough
-  Pointer<llama_context> _getContext(int requiredLength) {
+  Pointer<llama_context> _getContext(
+    int requiredLength, {
+    bool forEmbeddings = false,
+  }) {
     if (!_initialized) throw Exception('Engine not initialized');
 
     // If we already have a context with sufficient capacity, reuse it
@@ -91,6 +95,11 @@ class InferenceEngine {
           ..n_ctx = requiredLength
           ..n_batch = requiredLength;
 
+    if (forEmbeddings) {
+      contextParams.embeddings = true;
+      contextParams.n_ubatch = requiredLength; // For non-causal models
+    }
+
     final context = lowLevelInference.bindings.llama_init_from_model(
       _model,
       contextParams,
@@ -105,6 +114,144 @@ class InferenceEngine {
     _contextFinalizer.attach(this, context, detach: this);
 
     return context;
+  }
+
+  /// Generate embeddings for the given text.
+  ///
+  /// Returns a normalized vector of embeddings as a [List<double>].
+  /// The [contextLength] parameter controls the maximum context size.
+  /// If the text is longer than the context, it will be truncated.
+  /// The [normalize] parameter controls whether to normalize the embeddings to unit length.
+  List<double> embed(
+    String text, {
+    int contextLength = 2048,
+    bool normalize = true,
+  }) {
+    if (!_initialized) throw Exception('Engine not initialized');
+    if (text.isEmpty) throw ArgumentError('Text cannot be empty');
+
+    // Get context with embeddings enabled
+    final context = _getContext(contextLength, forEmbeddings: true);
+
+    // Clear KV cache
+    lowLevelInference.bindings.llama_kv_self_clear(context);
+
+    // Tokenize the input text - ensure we add special tokens properly
+    final tokens = tokenize(text, special: true, parseSpecial: true);
+
+    if (tokens.isEmpty) {
+      throw Exception('Tokenization resulted in empty token list');
+    }
+
+    // Ensure tokens fit in context
+    final maxTokens = lowLevelInference.bindings.llama_n_batch(context);
+    final tokensToProcess =
+        tokens.length > maxTokens ? tokens.sublist(0, maxTokens) : tokens;
+
+    // Get model embedding dimensions
+    final nEmbd = lowLevelInference.bindings.llama_model_n_embd(_model);
+
+    Pointer<Int32>? tokensPtr;
+
+    try {
+      // Create token array
+      tokensPtr = malloc<Int32>(tokensToProcess.length);
+      for (int i = 0; i < tokensToProcess.length; i++) {
+        tokensPtr[i] = tokensToProcess[i];
+      }
+
+      // Create batch - make sure all tokens have logits enabled for embeddings
+      final batch = lowLevelInference.bindings.llama_batch_init(
+        tokensToProcess.length,
+        0, // embd = 0 for token-based input
+        1, // n_seq_max = 1
+      );
+
+      // Set up the batch manually to ensure proper logits
+      for (int i = 0; i < tokensToProcess.length; i++) {
+        batch.token[i] = tokensToProcess[i];
+        batch.pos[i] = i;
+        batch.n_seq_id[i] = 1;
+        batch.seq_id[i][0] = 0; // sequence ID 0
+        batch.logits[i] = 1; // Enable logits for all tokens
+      }
+      batch.n_tokens = tokensToProcess.length;
+
+      // Use encode for embeddings (not decode)
+      final encodeResult = lowLevelInference.bindings.llama_encode(
+        context,
+        batch,
+      );
+      if (encodeResult < 0) {
+        throw Exception('Failed to encode tokens for embedding: $encodeResult');
+      }
+
+      // Get embeddings - try sequence embeddings first, then token embeddings
+      Pointer<Float> embeddingsPtr = lowLevelInference.bindings
+          .llama_get_embeddings_seq(
+            context,
+            0, // sequence ID 0
+          );
+
+      // If sequence embeddings are null, try token embeddings from last token
+      if (embeddingsPtr == nullptr) {
+        embeddingsPtr = lowLevelInference.bindings.llama_get_embeddings_ith(
+          context,
+          tokensToProcess.length - 1,
+        );
+      }
+
+      // If still null, try general embeddings
+      if (embeddingsPtr == nullptr) {
+        embeddingsPtr = lowLevelInference.bindings.llama_get_embeddings(
+          context,
+        );
+      }
+
+      if (embeddingsPtr == nullptr) {
+        throw Exception(
+          'Failed to get embeddings - model may not support embeddings',
+        );
+      }
+
+      // Convert to Dart list
+      final embeddings = List<double>.generate(
+        nEmbd,
+        (i) => embeddingsPtr[i].toDouble(),
+      );
+
+      // Clean up batch
+      lowLevelInference.bindings.llama_batch_free(batch);
+
+      // Check for NaN or infinite values
+      if (embeddings.any((value) => value.isNaN || value.isInfinite)) {
+        throw Exception(
+          'Embedding contains invalid values - model may not support embeddings',
+        );
+      }
+
+      // Normalize if requested
+      if (normalize) {
+        double norm = 0.0;
+        for (final value in embeddings) {
+          norm += value * value;
+        }
+        norm = sqrt(norm);
+
+        if (norm > 0.0) {
+          for (int i = 0; i < embeddings.length; i++) {
+            embeddings[i] /= norm;
+          }
+        }
+      }
+
+      return embeddings;
+    } finally {
+      // Clean up allocated memory
+      if (tokensPtr != null) {
+        malloc.free(tokensPtr);
+      }
+    }
   }
 
   /// Tokenize a text string into a list of token IDs.
