@@ -87,7 +87,7 @@ engine.dispose();
 
 > **Tip:** Always dispose of resources (such as the inference engine) when they are no longer needed to avoid memory leaks.
 
-### Performing Chat Inference
+### Chat Inference
 
 Interact with the model using structured chat messages for conversational AI scenarios.
 
@@ -103,6 +103,16 @@ engine.chat(
     messages,
     onResult: (result) => stdout.write(result.message?.content ?? ""),
 );
+```
+
+### Text Embeddings
+
+In order to compute the embedding for the given text, you must use an embedding model.
+
+```dart
+// Embed 'Hello' into the latent space
+final vector = engine.embed('Hello');
+print(vector) // [-0.0596, 0.0614, ...]
 ```
 
 ### Tokenizing and Detokenizing Text
@@ -129,8 +139,6 @@ lowLevelInference
     ..dynamicLibrary = DynamicLibrary.open("path/to/libllama.so") // Use .dylib for macOS, .dll for Windows
     ..logCallback = (String message) => print('[llama.cpp] $message');
 ```
-
-
 
 ## License
 
