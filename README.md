@@ -67,7 +67,9 @@ final model = InferenceModel(path: 'path/to/model.gguf');
 
 // Retrieve and display model metadata without loading the model
 final metadata = model.fetchMetadata();
-print('${metadata.name} by ${metadata.organization} under ${metadata.license}');
+print(
+  "${metadata['general.name']} by ${metadata['general.organization']} under ${metadata['general.license']}",
+);
 ```
 
 ### Initializing the Inference Engine
