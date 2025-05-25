@@ -5,6 +5,7 @@ import 'package:ffi/ffi.dart';
 import 'package:inference/src/chat_messages.dart';
 import 'package:inference/src/model.dart';
 import 'package:inference/src/low_level.dart';
+import 'package:inference/src/sampler.dart';
 import 'package:llama_cpp_bindings/llama_cpp_bindings.dart';
 
 class InferenceEngine {
@@ -381,133 +382,6 @@ class InferenceEngine {
     return result;
   }
 
-  /// Creates a sampler chain with the specified parameters
-  Pointer<llama_sampler> _createSampler({
-    double temperature = 0.8,
-    double topP = 1.0,
-    double topK = 40,
-    double minP = 0.05,
-    double typicalP = 1.0,
-    int seed = LLAMA_DEFAULT_SEED,
-    double repeatPenalty = 1.1,
-    double frequencyPenalty = 0.0,
-    double presencePenalty = 0.0,
-    int repeatPenaltyTokens = 64,
-  }) {
-    final chainParams =
-        lowLevelInference.bindings.llama_sampler_chain_default_params();
-    final sampler = lowLevelInference.bindings.llama_sampler_chain_init(
-      chainParams,
-    );
-
-    if (sampler == nullptr) {
-      throw Exception('Failed to initialize sampler chain');
-    }
-
-    // First add penalties if needed
-    if (repeatPenalty > 1.0) {
-      final penaltySampler = lowLevelInference.bindings
-          .llama_sampler_init_penalties(
-            repeatPenaltyTokens,
-            repeatPenalty,
-            frequencyPenalty,
-            presencePenalty,
-          );
-
-      if (penaltySampler == nullptr) {
-        lowLevelInference.bindings.llama_sampler_free(sampler);
-        throw Exception('Failed to create penalty sampler');
-      }
-
-      lowLevelInference.bindings.llama_sampler_chain_add(
-        sampler,
-        penaltySampler,
-      );
-    }
-
-    // Top-K filter (limit to K most likely tokens)
-    if (topK > 0) {
-      final topKSampler = lowLevelInference.bindings.llama_sampler_init_top_k(
-        topK.toInt(),
-      );
-      if (topKSampler == nullptr) {
-        lowLevelInference.bindings.llama_sampler_free(sampler);
-        throw Exception('Failed to create top-k sampler');
-      }
-
-      lowLevelInference.bindings.llama_sampler_chain_add(sampler, topKSampler);
-    }
-
-    // Min-P filter (remove tokens below threshold)
-    if (minP > 0 && minP < 1.0) {
-      final minPSampler = lowLevelInference.bindings.llama_sampler_init_min_p(
-        minP,
-        1,
-      );
-      if (minPSampler == nullptr) {
-        lowLevelInference.bindings.llama_sampler_free(sampler);
-        throw Exception('Failed to create min-p sampler');
-      }
-
-      lowLevelInference.bindings.llama_sampler_chain_add(sampler, minPSampler);
-    }
-
-    // Typical-P filter (nucleus diversity)
-    if (typicalP > 0 && typicalP < 1.0) {
-      final typicalPSampler = lowLevelInference.bindings
-          .llama_sampler_init_typical(typicalP, 1);
-      if (typicalPSampler == nullptr) {
-        lowLevelInference.bindings.llama_sampler_free(sampler);
-        throw Exception('Failed to create typical-p sampler');
-      }
-
-      lowLevelInference.bindings.llama_sampler_chain_add(
-        sampler,
-        typicalPSampler,
-      );
-    }
-
-    // Top-P filter (nucleus sampling)
-    if (topP < 1.0) {
-      final topPSampler = lowLevelInference.bindings.llama_sampler_init_top_p(
-        topP,
-        1,
-      );
-      if (topPSampler == nullptr) {
-        lowLevelInference.bindings.llama_sampler_free(sampler);
-        throw Exception('Failed to create top-p sampler');
-      }
-
-      lowLevelInference.bindings.llama_sampler_chain_add(sampler, topPSampler);
-    }
-
-    // Temperature sampler
-    if (temperature > 0) {
-      final tempSampler = lowLevelInference.bindings.llama_sampler_init_temp(
-        temperature,
-      );
-      if (tempSampler == nullptr) {
-        lowLevelInference.bindings.llama_sampler_free(sampler);
-        throw Exception('Failed to create temperature sampler');
-      }
-
-      lowLevelInference.bindings.llama_sampler_chain_add(sampler, tempSampler);
-    }
-
-    // Distribution sampler (final sampler in chain)
-    final distSampler = lowLevelInference.bindings.llama_sampler_init_dist(
-      seed,
-    );
-    if (distSampler == nullptr) {
-      lowLevelInference.bindings.llama_sampler_free(sampler);
-      throw Exception('Failed to create distribution sampler');
-    }
-
-    lowLevelInference.bindings.llama_sampler_chain_add(sampler, distSampler);
-
-    return sampler;
-  }
-
   /// Generates a chat response for a list of messages.
   void chat(
     List<ChatMessage> messages, {
@@ -521,6 +395,7 @@ class InferenceEngine {
     double repeatPenalty = 1.1,
     int repeatPenaltyTokens = 64,
     int seed = LLAMA_DEFAULT_SEED,
+    InferenceSampler? customSampler,
     Function(ChatResult result)? onResult,
   }) {
     if (!_initialized) throw Exception('Engine not initialized');
@@ -531,22 +406,25 @@ class InferenceEngine {
     // Clean the KV cache
     lowLevelInference.bindings.llama_kv_self_clear(context);
 
-    // Initialize the sampler
-    final sampler = _createSampler(
-      temperature: temperature,
-      topP: topP,
-      topK: topK,
-      minP: minP,
-      typicalP: typicalP,
-      repeatPenalty: repeatPenalty,
-      repeatPenaltyTokens: repeatPenaltyTokens,
-      seed: seed,
-    );
+    // Initialize the sampler - use custom sampler if provided, otherwise create default
+    final sampler =
+        customSampler ??
+        InferenceSampler.createDefault(
+          temperature: temperature,
+          topP: topP,
+          topK: topK,
+          minP: minP,
+          typicalP: typicalP,
+          repeatPenalty: repeatPenalty,
+          repeatPenaltyTokens: repeatPenaltyTokens,
+          seed: seed,
+        );
 
     // Resources to clean up
     Pointer<Char>? buffer;
     Pointer<llama_chat_message>? messagesArray;
     List<llama_chat_message> llamaMessages = [];
+    bool shouldDisposeSampler = customSampler == null;
 
     try {
       // Get the chat template from the model
@@ -638,12 +516,8 @@ class InferenceEngine {
 
       // Sample tokens until we hit a stop condition or the limit
       for (var i = 0; i < maxTokens; i++) {
-        // Sample the next token
-        final newTokenId = lowLevelInference.bindings.llama_sampler_sample(
-          sampler,
-          context,
-          -1,
-        );
+        // Sample the next token using the sampler
+        final newTokenId = sampler.sample(context, -1);
 
         // Check if we reached the end of generation
         if (lowLevelInference.bindings.llama_vocab_is_eog(
@@ -701,8 +575,8 @@ class InferenceEngine {
       // In case of error, yield a result with the error
       onResult?.call(ChatResult(finishReason: FinishReason.error));
     } finally {
-      // Free all allocated resources
-      lowLevelInference.bindings.llama_sampler_free(sampler);
+      // Free the sampler if we created it
+      if (shouldDisposeSampler) sampler.dispose();
 
       // Free messages
       if (messagesArray != null) {
